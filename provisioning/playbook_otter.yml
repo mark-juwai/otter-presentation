@@ -1,0 +1,252 @@
+---
+# For all hosts, we will
+#   + set hostname
+#   + prepare /etc/hosts
+#   + install required system packages
+#   + download otter components
+#   + prepare directory for zookeeper and aria2
+- hosts: all
+  gather_facts: yes
+  tags: prepare
+  tasks:
+    # Start Prepare for Basic Environment
+    - name: set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: prepare /etc/hosts file
+      template:
+          src: templates/hosts.j2
+          dest: /etc/hosts
+          backup: yes
+      when: hostvars is defined and groups is defined
+
+    - name: install required system packages
+      yum:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - gcc-c++
+        - gcc
+        - git
+        - vim
+        - wget
+        - nc
+    # End
+
+    # Start install JDK
+    - name: download jdk
+      get_url:
+        url: '{{ jdk_download_url }}'
+        dest: '/tmp/'
+        validate_certs: no
+        headers: 'Cookie: oraclelicense=accept-securebackup-cookie'
+
+    - name: install jdk
+      yum:
+        name: "/tmp/{{ jdk_rpm_name }}"
+        state: present
+    # End
+
+    # Start download all packages
+    - name: download packages
+      get_url:
+        url: "{{ item.url }}"
+        dest: "/tmp/{{ item.package_name }}"
+      when: item.name != 'manager' or install_manager is defined
+      with_items: '{{ download_packages }}'
+    # End
+
+    - name: make sure /opt folder exists
+      file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - /opt
+        - /opt/zookeeper
+        - /opt/aria2
+
+    # Start build aria2
+    - name: unarchive aria2 and zookeeper into /opt/{aria2,zookeeper}
+      command: "tar zxvf /tmp/{{ item.package_name }} -C /opt/{{ item.name }}/ --strip-components 1"
+      args:
+        creates: "/opt/{{ item.name }}/{{ item.creates }}"
+      when: item.name == 'aria2' or item.name == 'zookeeper'
+      with_items: '{{ download_packages }}'
+
+    - name: install aria2 from source
+      shell: ./configure && make && make install
+      args:
+        chdir: /opt/aria2
+        creates: /usr/local/bin/aria2c
+    # End
+
+# For all hosts, we will
+#   + including variables for zookeeper/manager/node
+- hosts: all
+  tags:
+    - zookeeper
+    - manager
+    - node
+  tasks:
+    - include_vars: "vars/{{ env }}.yml"
+
+# For all hosts, we will
+#   + install zookeeper
+#   + prepare zookeeper's configuration and myid
+- hosts: all
+  tags: zookeeper
+  tasks:
+    # Start Configure zookeeper cluster
+    - name: configuration for zookeeper
+      template:
+        src: templates/zoo.cfg.j2
+        dest: /opt/zookeeper/conf/zoo.cfg
+        backup: yes
+
+    - name: make sure zookeeper data folder exists
+      file:
+        path: "{{ zookeeper_data_dir }}"
+        state: directory
+
+    - name: don't forget to set `myid` for zookeeper
+      template:
+        src: templates/myid.j2
+        dest: "{{ zookeeper_data_dir }}/myid"
+        backup: yes
+    # End
+
+# For vagrant environment, we will
+#   + install MySQL in manager server
+#   + add otter_manager user in MySQL
+#   + create otter database
+- hosts: manager
+  tags: manager
+  tasks:
+    # Start For vagrant environment, we install local MySQL in manager server
+    - name: Install MySQL Community YUM Repo.
+      yum:
+        name: http://dev.mysql.com/get/mysql-community-release-el6-5.noarch.rpm
+        state: installed
+      when: env == 'vagrant'
+
+    - name: Install MySQL
+      yum:
+        name: "{{ item }}"
+        state: installed
+      with_items:
+        - mysql-community-server
+        - MySQL-python
+      when: env == 'vagrant'
+
+    - name: Ensure MySQL is running
+      service:
+        name: mysqld
+        state: started
+        enabled: yes
+      when: env == 'vagrant'
+
+    - name: Add otter manager user
+      mysql_user:
+        name: "{{ mysql_otter_manager_user }}"
+        password: "{{ mysql_otter_manager_password }}"
+        host: '%'
+        priv: "*.*:ALL"
+      when: env == 'vagrant'
+
+    - name: download otter manager system table sql
+      get_url:
+        url: "{{ otter_manager_schema_sql_url }}"
+        dest: "/opt/otter-manager-schema.sql"
+      when: env == 'vagrant'
+
+    - name: check whether otter table already exists
+      command: mysql -NBe 'show databases'
+      register: otter_table
+      changed_when: false
+      when: env == 'vagrant'
+
+    - name: create otter manager system table
+      mysql_db:
+        name: otter
+        state: present
+        encoding: utf8
+        collation: utf8_general_ci
+      when: env == 'vagrant' and "otter" not in otter_table.stdout_lines
+
+    - name: init otter manager system table
+      mysql_db:
+        name: otter
+        state: import
+        target: /opt/otter-manager-schema.sql
+      when: env == 'vagrant' and "otter" not in otter_table.stdout_lines
+    # End
+
+# For manager host, we will
+#   + install manager
+#   + prepare configuration for manager
+- hosts: manager
+  tags: manager
+  tasks:
+    # Start install and configure manager
+    - name: make sure /opt/manager folder exists
+      file:
+        path: /opt/manager
+        state: directory
+
+    - name: unarchive manager into /opt/manager
+      unarchive:
+        copy: no
+        src: "/tmp/{{ item.package_name }}"
+        dest: "/opt/{{ item.name }}"
+        creates: "/opt/{{ item.name }}/{{ item.creates }}"
+      when: item.name == 'manager'
+      with_items: '{{ download_packages }}'
+
+    - name: configureation for manager
+      template:
+        src: templates/manager.otter.properties.j2
+        dest: /opt/manager/conf/otter.properties
+        backup: yes
+    # End
+
+# For node hosts, we will
+#   + install nodes
+#   + prepare configuration for nodes
+#
+# Note: one host could have multiple nodes
+- hosts: node
+  tags: node
+  tasks:
+    # Start install and configure nodes
+    - name: make sure /opt/node* folder exists
+      file:
+        path: "/opt/{{ item }}"
+        state: directory
+      with_items: '{{ install_nodes }}'
+
+    - name: unarchive manager into /opt/node*
+      unarchive:
+        copy: no
+        src: "/tmp/node.deployer-4.2.12.tar.gz"
+        dest: "/opt/{{ item }}"
+        creates: "/opt/{{ item }}/bin/startup.sh"
+      with_items: '{{ install_nodes }}'
+
+    - name: configuration for nodes
+      template:
+        src: templates/node.otter.properties.j2
+        dest: "/opt/{{ item }}/conf/otter.properties"
+        backup: yes
+      with_items: '{{ install_nodes }}'
+    # End
+
+# Notify User to start services and setup sync tasks
+- hosts: all
+  tasks:
+    # Services
+    - name: start zookeeper/manager/node
+      debug: msg="start zookeeper/manager/node(node need set /opt/node*/conf/nid)"
+
+    - name: setup sync tasks in manager's web UI
+      debug: msg="go to otter.juwai.io/172.16.1.2:8080 and setup channel/pipeline/mapping"

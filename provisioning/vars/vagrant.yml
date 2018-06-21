@@ -1,0 +1,21 @@
+---
+# Manager Variables
+otter_domain_name: 172.16.1.2
+otter_port: 8080
+
+mysql_otter_manager_url: jdbc:mysql://127.0.0.1:3306/otter
+mysql_otter_manager_user: otter_manager
+mysql_otter_manager_password: otter_manager_password
+
+otter_communication_manager_port: 1099
+
+otter_manager_production_mode: 'true'
+
+otter_manager_monitor_email_host: 'smtp.gmail.com'
+otter_manager_monitor_email_username: ''
+otter_manager_monitor_email_password: ''
+otter_manager_monitor_email_port: '465'
+
+# Node Variables
+manager_private_ip: 172.16.1.2
+manager_advertise_ip: 172.16.1.2

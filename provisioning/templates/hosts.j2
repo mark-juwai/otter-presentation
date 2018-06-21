@@ -1,0 +1,23 @@
+127.0.0.1   localhost localhost.localdomain
+
+{% if region == 'cn' %}
+
+{% for item in groups['all'] %}
+{% if hostvars[item].region == 'cn' %}
+{{ hostvars[item].private_ip }} {{ item }}
+{% elif hostvars[item].region == 'sg'  %}
+{{ hostvars[item].advertise_ip }} {{ item }}
+{% endif %}
+{% endfor %}
+
+{% elif region == 'sg' %}
+
+{% for item in groups['all'] %}
+{% if hostvars[item].region == 'sg' %}
+{{ hostvars[item].private_ip }} {{ item }}
+{% elif hostvars[item].region == 'cn'  %}
+{{ hostvars[item].advertise_ip }} {{ item }}
+{% endif %}
+{% endfor %}
+
+{% endif %}

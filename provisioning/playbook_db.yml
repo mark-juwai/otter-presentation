@@ -1,0 +1,97 @@
+---
+- hosts: all
+  gather_facts: yes
+
+  handlers:
+    - name: restart mysqld
+      service:
+        name: 'mysqld'
+        state: restarted
+
+  tasks:
+    # Start Prepare for Basic Environment
+    - name: set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+#     - name: install required system packages
+#       yum:
+#         name: "{{ item }}"
+#         state: present
+#       with_items:
+#         - gcc-c++
+#         - gcc
+#         - git
+#         - vim
+#         - wget
+#         - nc
+
+    - name: Install MySQL Community YUM Repo.
+      yum:
+        name: http://dev.mysql.com/get/mysql-community-release-el6-5.noarch.rpm
+        state: installed
+      when: env == 'vagrant'
+
+    - name: Install MySQL
+      yum:
+        name: "{{ item }}"
+        state: installed
+      with_items:
+        - mysql-community-server
+        - MySQL-python
+      when: env == 'vagrant'
+
+    - name: Update my.cnf
+      ini_file:
+        dest: '/etc/my.cnf'
+        section: 'mysqld'
+        option: '{{ item.option }}'
+        value: '{{ item.value }}'
+        state: '{{ item.state }}'
+      with_items:
+        - { option: 'log-bin', value: 'mysql-bin', state: present }
+        - { option: 'binlog_format', value: 'row', state: present }
+        - { option: 'server-id', value: '{{ 100 | random }}', state: present }
+      notify: restart mysqld
+
+    - name: Ensure MySQL is running
+      service:
+        name: mysqld
+        state: started
+        enabled: yes
+      when: env == 'vagrant'
+
+    - name: Add otter manager user
+      mysql_user:
+        name: "otter"
+        password: "otter"
+        host: '%'
+        priv: "*.*:ALL"
+      when: env == 'vagrant'
+
+    - name: copy sql file
+      copy:
+        src: "./test_tables.sql"
+        dest: "/tmp"
+      when: env == 'vagrant'
+
+    - name: check whether test database exists
+      command: mysql -NBe 'show databases'
+      register: test_db
+      changed_when: false
+      when: env == 'vagrant'
+
+    - name: create test database
+      mysql_db:
+        name: test
+        state: present
+        encoding: utf8
+        collation: utf8_general_ci
+      when: env == 'vagrant' and "test" not in test_db.stdout_lines
+
+    - name: import test tables
+      mysql_db:
+        name: test
+        state: import
+        target: /tmp/test_tables.sql
+      when: env == 'vagrant' and "test" not in test_db.stdout_lines

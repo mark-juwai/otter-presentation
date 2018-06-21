@@ -1,0 +1,20 @@
+# otter node root dir
+otter.nodeHome = ${user.dir}/../
+
+## otter node dir
+otter.htdocs.dir = ${otter.nodeHome}/htdocs
+otter.download.dir = ${otter.nodeHome}/download
+otter.extend.dir= ${otter.nodeHome}/extend
+
+## default zookeeper sesstion timeout = 60s
+otter.zookeeper.sessionTimeout = 60000
+
+## otter communication pool size
+otter.communication.pool.size = 10
+
+## otter arbitrate & node connect manager config
+{% if region == 'cn' %}
+otter.manager.address = {{ manager_advertise_ip }}:1099
+{% else %}
+otter.manager.address = {{ manager_private_ip }}:1099
+{% endif %}

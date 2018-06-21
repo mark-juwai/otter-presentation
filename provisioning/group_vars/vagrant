@@ -1,0 +1,26 @@
+---
+env: vagrant
+
+ansible_ssh_port: 22
+ansible_ssh_user: vagrant
+ansible_ssh_private_key_file: ~/.vagrant.d/insecure_private_key
+ansible_sudo: yes
+
+# vagrant box only have gcc 4.4.7 version, so we could only use aria2-1.17.1 version
+download_packages:
+  - { name: manager,
+      url: "https://github.com/alibaba/otter/releases/download/otter-4.2.12/manager.deployer-4.2.12.tar.gz",
+      creates: "bin/startup.sh",
+      package_name: manager.deployer-4.2.12.tar.gz }
+  - { name: node,
+      url: "https://github.com/alibaba/otter/releases/download/otter-4.2.12/node.deployer-4.2.12.tar.gz",
+      creates: "bin/startup.sh",
+      package_name: node.deployer-4.2.12.tar.gz }
+  - { name: zookeeper,
+      url: "https://archive.apache.org/dist/zookeeper/zookeeper-3.4.7/zookeeper-3.4.7.tar.gz",
+      creates: "bin/zkServer.sh",
+      package_name: zookeeper-3.4.7.tar.gz }
+  - { name: aria2,
+      url: "http://sourceforge.net/projects/aria2/files/stable/aria2-1.17.1/aria2-1.17.1.tar.gz/download",
+      creates: "configure",
+      package_name: aria2-1.17.1.tar.gz }

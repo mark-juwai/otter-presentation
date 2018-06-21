@@ -1,0 +1,5 @@
+---
+jdk_download_url:  "http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.rpm"
+
+jdk_rpm_name: 'jdk-8u171-linux-x64.rpm'
+otter_manager_schema_sql_url: "https://raw.github.com/alibaba/otter/master/manager/deployer/src/main/resources/sql/otter-manager-schema.sql"
