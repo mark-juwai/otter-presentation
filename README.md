@@ -7,7 +7,11 @@ This documentation describes how to setup Otter Manager/Node/ZooKeepers.
 
 ```
 $ vagrant up
-$ ansible-playbook  -i provisioning/hosts.vagrant  provisioning/playbook.yml
+# For database boxes
+$ ansible-playbook --limit database -i provisioning/hosts.vagrant  provisioning/playbook_db.yml
+
+# For node boxes
+$ ansible-playbook --limit node -i provisioning/hosts.vagrant  provisioning/playbook_otter.yml
 ```
 
 ## Start ZooKeeper Clusters
@@ -39,3 +43,5 @@ $ sudo su
 # echo {{ nid }} > conf/nid
 # bin/startup.sh
 ```
+
+CAUTION: :boom::boom::boom: Make sure you have sufficient memory.
