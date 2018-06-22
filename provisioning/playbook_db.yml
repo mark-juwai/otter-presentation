@@ -14,18 +14,6 @@
       hostname:
         name: "{{ inventory_hostname }}"
 
-#     - name: install required system packages
-#       yum:
-#         name: "{{ item }}"
-#         state: present
-#       with_items:
-#         - gcc-c++
-#         - gcc
-#         - git
-#         - vim
-#         - wget
-#         - nc
-
     - name: Install MySQL Community YUM Repo.
       yum:
         name: http://dev.mysql.com/get/mysql-community-release-el6-5.noarch.rpm

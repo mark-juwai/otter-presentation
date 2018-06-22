@@ -1,3 +1,4 @@
 # vagrant box
 .vagrant/
+.virtualenv/
 provisioning/*.retry
